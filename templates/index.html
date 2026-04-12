@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Math Equation Solver</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+
+  <header class="site-header">
+    <div class="logo">
+      <span class="logo-symbol">∑</span>
+      <span class="logo-text">MathLens</span>
+    </div>
+    <p class="tagline">Photograph an equation. Get the answer.</p>
+  </header>
+
+  <main class="main-content">
+
+    <!-- Upload card -->
+    <section class="card upload-card" id="uploadSection">
+      <div
+        class="drop-zone"
+        id="dropZone"
+        role="button"
+        aria-label="Click or drag to upload an image"
+        tabindex="0"
+      >
+        <div class="drop-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+          </svg>
+        </div>
+        <p class="drop-primary">Drop your equation image here</p>
+        <p class="drop-secondary">or <span class="link-look">browse files</span></p>
+        <p class="drop-hint">PNG, JPG, WEBP · up to 16 MB</p>
+        <input type="file" id="fileInput" accept="image/*" hidden />
+      </div>
+
+      <!-- Preview -->
+      <div class="preview-wrap" id="previewWrap" hidden>
+        <img id="previewImg" alt="Uploaded equation preview" />
+        <button class="btn-ghost" id="changeBtn" type="button">Change image</button>
+      </div>
+
+      <button class="btn-solve" id="solveBtn" type="button" disabled>
+        <span class="btn-label">Solve Equation</span>
+        <span class="btn-icon">→</span>
+      </button>
+    </section>
+
+    <!-- Result card -->
+    <section class="card result-card" id="resultCard" hidden>
+
+      <div class="result-block detected-block">
+        <p class="result-label">Detected Equation</p>
+        <p class="result-value" id="detectedEq">—</p>
+      </div>
+
+      <div class="result-divider"></div>
+
+      <div class="result-block solution-block">
+        <p class="result-label">Solution</p>
+        <pre class="result-value solution-value" id="solutionVal">—</pre>
+      </div>
+
+      <button class="btn-ghost reset-btn" id="resetBtn" type="button">Solve another</button>
+    </section>
+
+    <!-- Error card -->
+    <section class="card error-card" id="errorCard" hidden>
+      <div class="error-icon">✕</div>
+      <p class="error-title">Could not solve</p>
+      <p class="error-msg" id="errorMsg">An unknown error occurred.</p>
+      <button class="btn-ghost" id="errorResetBtn" type="button">Try again</button>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>Powered by Tesseract OCR · OpenCV · SymPy</p>
+  </footer>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
+
