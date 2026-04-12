@@ -2,16 +2,31 @@
 ocr.py — Image preprocessing and OCR text extraction using pytesseract.
 
 Uses OpenCV for preprocessing and pytesseract (Tesseract wrapper) for OCR.
-Tesseract is installed via build.sh before pip runs.
+Tesseract is installed via build.sh. The binary path is set explicitly so
+Render's runtime environment can find it regardless of PATH configuration.
 """
 
+import os
 import cv2
 import numpy as np
 import pytesseract
 from PIL import Image
 
+# Explicitly point pytesseract at the Tesseract binary.
+# This is necessary on Render where the runtime PATH may differ from build PATH.
+_TESSERACT_CANDIDATES = [
+    "/usr/bin/tesseract",           # apt-get default on Debian/Ubuntu (Render)
+    "/usr/local/bin/tesseract",     # alternate Linux location
+    "/opt/homebrew/bin/tesseract",  # macOS Apple Silicon
+    "/usr/local/Cellar/tesseract",  # macOS Intel Homebrew
+]
+for _candidate in _TESSERACT_CANDIDATES:
+    if os.path.isfile(_candidate):
+        pytesseract.pytesseract.tesseract_cmd = _candidate
+        break
 
-def preprocess_image(image_path: str) -> np.ndarray:
+
+def preprocess_image(image_path: str):
     """
     Load and preprocess an image for better OCR accuracy.
 
