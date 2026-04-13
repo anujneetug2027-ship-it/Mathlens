@@ -6,7 +6,6 @@ No system dependencies required — works on any cloud platform.
 """
 
 import os
-import base64
 import google.generativeai as genai
 from PIL import Image
 
@@ -26,7 +25,7 @@ def extract_equation_from_image(image_path: str) -> str:
         raise ValueError("GEMINI_API_KEY environment variable is not set.")
 
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.5-flash-preview-04-17")
+    model = genai.GenerativeModel("gemini-2.0-flash")
 
     image = Image.open(image_path)
 
