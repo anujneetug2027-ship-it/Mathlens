@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Math Equation Solver</title>
+  <title>MathLens</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-
   <div class="bg-grid"></div>
 
   <header class="site-header">
@@ -18,77 +17,194 @@
       <span class="logo-symbol">∑</span>
       <span class="logo-text">MathLens</span>
     </div>
-    <p class="tagline">Photograph an equation. Get the answer.</p>
+    <p class="tagline">Photograph or type an equation. Get full solution steps.</p>
   </header>
 
   <main class="main-content">
 
-    <!-- Upload card -->
-    <section class="card upload-card" id="uploadSection">
-      <div
-        class="drop-zone"
-        id="dropZone"
-        role="button"
-        aria-label="Click or drag to upload an image"
-        tabindex="0"
-      >
+    <!-- Mode Toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modeImage" onclick="switchMode('image')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="M21 15l-5-5L5 21"/>
+        </svg>
+        Image Input
+      </button>
+      <button class="mode-btn" id="modeText" onclick="switchMode('text')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        Type Equation
+      </button>
+    </div>
+
+    <!-- IMAGE INPUT CARD -->
+    <section class="card" id="imageCard">
+      <p class="card-note">📷 Image mode uses Gemini Vision for OCR only. The solving is done locally by SymPy.</p>
+
+      <div class="drop-zone" id="dropZone" role="button" tabindex="0">
         <div class="drop-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path stroke-linecap="round" stroke-linejoin="round"
-              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
           </svg>
         </div>
         <p class="drop-primary">Drop your equation image here</p>
         <p class="drop-secondary">or <span class="link-look">browse files</span></p>
-        <p class="drop-hint">PNG, JPG, WEBP · up to 16 MB</p>
+        <p class="drop-hint">PNG · JPG · WEBP · up to 16 MB</p>
         <input type="file" id="fileInput" accept="image/*" hidden />
       </div>
 
-      <!-- Preview -->
       <div class="preview-wrap" id="previewWrap" hidden>
-        <img id="previewImg" alt="Uploaded equation preview" />
-        <button class="btn-ghost" id="changeBtn" type="button">Change image</button>
+        <img id="previewImg" alt="Preview" />
+        <button class="btn-ghost" id="changeBtn">Change image</button>
       </div>
 
-      <button class="btn-solve" id="solveBtn" type="button" disabled>
+      <button class="btn-solve" id="solveBtnImage" disabled>
         <span class="btn-label">Solve Equation</span>
         <span class="btn-icon">→</span>
       </button>
     </section>
 
-    <!-- Result card -->
+    <!-- TEXT INPUT CARD -->
+    <section class="card" id="textCard" hidden>
+
+      <p class="card-note">⌨️ Text mode is fully offline — no API used. SymPy solves everything locally.</p>
+
+      <!-- Symbol Keyboard -->
+      <div class="sym-keyboard">
+
+        <div class="sym-group">
+          <span class="sym-label">Calculus</span>
+          <div class="sym-row">
+            <button class="sym-btn" data-insert="integrate(" title="Integral">∫</button>
+            <button class="sym-btn" data-insert="diff(" title="Derivative">d/dx</button>
+            <button class="sym-btn" data-insert="limit(" title="Limit">lim</button>
+            <button class="sym-btn" data-insert="Sum(" title="Summation">Σ</button>
+            <button class="sym-btn" data-insert="Product(" title="Product">∏</button>
+          </div>
+        </div>
+
+        <div class="sym-group">
+          <span class="sym-label">Powers &amp; Roots</span>
+          <div class="sym-row">
+            <button class="sym-btn" data-insert="**2" title="Square">x²</button>
+            <button class="sym-btn" data-insert="**3" title="Cube">x³</button>
+            <button class="sym-btn" data-insert="**(" title="Power">xⁿ</button>
+            <button class="sym-btn" data-insert="sqrt(" title="Square root">√</button>
+            <button class="sym-btn" data-insert="cbrt(" title="Cube root">∛</button>
+          </div>
+        </div>
+
+        <div class="sym-group">
+          <span class="sym-label">Brackets</span>
+          <div class="sym-row">
+            <button class="sym-btn" data-insert="(">(</button>
+            <button class="sym-btn" data-insert=")">)</button>
+            <button class="sym-btn" data-insert="[">[</button>
+            <button class="sym-btn" data-insert="]">]</button>
+            <button class="sym-btn" data-insert="/">/</button>
+            <button class="sym-btn" data-insert="Abs(" title="Absolute">|x|</button>
+          </div>
+        </div>
+
+        <div class="sym-group">
+          <span class="sym-label">Trig &amp; Log</span>
+          <div class="sym-row">
+            <button class="sym-btn" data-insert="sin(">sin</button>
+            <button class="sym-btn" data-insert="cos(">cos</button>
+            <button class="sym-btn" data-insert="tan(">tan</button>
+            <button class="sym-btn" data-insert="log(">log</button>
+            <button class="sym-btn" data-insert="ln(">ln</button>
+            <button class="sym-btn" data-insert="exp(">eˣ</button>
+          </div>
+        </div>
+
+        <div class="sym-group">
+          <span class="sym-label">Constants</span>
+          <div class="sym-row">
+            <button class="sym-btn" data-insert="pi">π</button>
+            <button class="sym-btn" data-insert="oo">∞</button>
+            <button class="sym-btn" data-insert="E">e</button>
+            <button class="sym-btn" data-insert="**0.5">^½</button>
+            <button class="sym-btn" data-insert="*">×</button>
+            <button class="sym-btn" data-insert="="> = </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Text Input -->
+      <div class="text-input-wrap">
+        <textarea
+          id="equationInput"
+          class="equation-textarea"
+          placeholder="e.g.  x**2 - 13*x + 42 = 0&#10;      integrate(4*x**3, (x, 0, 4))&#10;      diff(x**3 + 2*x, x)"
+          rows="3"
+          spellcheck="false"
+          autocorrect="off"
+          autocapitalize="off"
+        ></textarea>
+        <button class="clear-btn" id="clearBtn" title="Clear">✕</button>
+      </div>
+
+      <!-- Example chips -->
+      <div class="example-chips">
+        <span class="chip-label">Try:</span>
+        <button class="chip" data-eq="x**2 - 13*x + 42 = 0">Quadratic</button>
+        <button class="chip" data-eq="integrate(4*x**3, (x, 0, 4))">Definite ∫</button>
+        <button class="chip" data-eq="diff(x**3 + 2*x, x)">Derivative</button>
+        <button class="chip" data-eq="(72+929*82) - (28+282*28)">Arithmetic</button>
+        <button class="chip" data-eq="2*x + 5 = 15">Linear</button>
+        <button class="chip" data-eq="integrate(sin(x), x)">∫ sin(x)</button>
+      </div>
+
+      <button class="btn-solve" id="solveBtnText" disabled>
+        <span class="btn-label">Solve Equation</span>
+        <span class="btn-icon">→</span>
+      </button>
+    </section>
+
+    <!-- RESULT CARD -->
     <section class="card result-card" id="resultCard" hidden>
 
-      <div class="result-block detected-block">
-        <p class="result-label">Detected Equation</p>
-        <p class="result-value" id="detectedEq">—</p>
+      <div class="result-header">
+        <span class="result-badge">Solution</span>
+        <button class="btn-ghost" id="copyBtn">Copy</button>
+      </div>
+
+      <div class="result-block">
+        <p class="result-label">Detected / Input Equation</p>
+        <p class="result-value mono" id="detectedEq">—</p>
       </div>
 
       <div class="result-divider"></div>
 
-      <div class="result-block solution-block">
-        <p class="result-label">Solution</p>
-        <pre class="result-value solution-value" id="solutionVal">—</pre>
+      <div class="result-block">
+        <p class="result-label">Full Solution Steps</p>
+        <div class="steps-container" id="stepsContainer"></div>
       </div>
 
-      <button class="btn-ghost reset-btn" id="resetBtn" type="button">Solve another</button>
+      <button class="btn-ghost reset-btn" id="resetBtn">Solve another</button>
     </section>
 
-    <!-- Error card -->
+    <!-- ERROR CARD -->
     <section class="card error-card" id="errorCard" hidden>
       <div class="error-icon">✕</div>
       <p class="error-title">Could not solve</p>
       <p class="error-msg" id="errorMsg">An unknown error occurred.</p>
-      <button class="btn-ghost" id="errorResetBtn" type="button">Try again</button>
+      <button class="btn-ghost" id="errorResetBtn">Try again</button>
     </section>
 
   </main>
 
   <footer class="site-footer">
-    <p>Powered by Tesseract OCR · OpenCV · SymPy</p>
+    <p>OCR: Gemini Vision (image mode only) · Solver: SymPy (always offline)</p>
   </footer>
 
   <script src="/static/script.js"></script>
 </body>
 </html>
-
