@@ -1,12 +1,11 @@
 """
-solver.py — Parse OCR text and solve/evaluate with SymPy.
+solver.py — Solve math expressions with SymPy and return step-by-step results.
 
-Handles:
-  - Equations:           x**2 - 13*x + 42 = 0  →  x = 6, x = 7
-  - Definite integrals:  integrate(4*x**3, (x, 0, 4))  →  256
-  - Indefinite integrals: integrate(4*x**3, x)  →  x**4
-  - Derivatives:         diff(x**3, x)  →  3*x**2
-  - Expressions:         2 + 3*4  →  14
+Gemini is used ONLY for OCR (image → text).
+All solving is done offline by SymPy.
+
+Returns a list of step dicts:
+  [{"title": "...", "expr": "...", "type": "step|final"}, ...]
 """
 
 import re
@@ -14,123 +13,137 @@ import sympy as sp
 from parser import parse_expression
 
 
-def solve_equation(raw_text: str) -> str:
+def solve_equation(raw_text: str) -> list:
     """
-    Main entry point: take raw OCR text, parse it, and solve/evaluate it.
+    Parse and solve raw equation text. Returns list of step dicts.
     """
     text = raw_text.strip()
+    steps = []
+
+    steps.append({"title": "Input received", "expr": text, "type": "step"})
 
     # --- Definite integral: integrate(expr, (var, a, b)) ---
-    m = re.match(r"integrate\((.+),\s*\((\w+),\s*(.+),\s*(.+)\)\)", text, re.IGNORECASE)
+    m = re.match(r"integrate\((.+),\s*\((\w+),\s*(.+?),\s*(.+?)\)\)\s*$", text, re.IGNORECASE)
     if m:
         expr_str, var_str, lower, upper = m.group(1), m.group(2), m.group(3), m.group(4)
-        try:
-            var = sp.Symbol(var_str)
-            expr = sp.sympify(expr_str)
-            result = sp.integrate(expr, (var, sp.sympify(lower), sp.sympify(upper)))
-            result = sp.simplify(result)
-            numeric = float(result.evalf())
-            if numeric == int(numeric):
-                return f"= {int(numeric)}"
-            return f"≈ {round(numeric, 4)}"
-        except Exception as e:
-            raise ValueError(f"Could not evaluate integral: {e}")
+        var = sp.Symbol(var_str)
+        expr = sp.sympify(expr_str)
+        steps.append({"title": "Identified as definite integral", "expr": f"∫({expr_str}) d{var_str} from {lower} to {upper}", "type": "step"})
+        antideriv = sp.integrate(expr, var)
+        steps.append({"title": "Antiderivative found", "expr": f"F({var_str}) = {antideriv}", "type": "step"})
+        result = sp.integrate(expr, (var, sp.sympify(lower), sp.sympify(upper)))
+        result = sp.simplify(result)
+        numeric = float(result.evalf())
+        answer = int(numeric) if numeric == int(numeric) else round(numeric, 6)
+        steps.append({"title": f"Evaluate F({upper}) - F({lower})", "expr": f"{antideriv.subs(var, sp.sympify(upper))} - {antideriv.subs(var, sp.sympify(lower))}", "type": "step"})
+        steps.append({"title": "Final Answer", "expr": str(answer), "type": "final"})
+        return steps
 
-    # --- Indefinite integral: integrate(expr, x) ---
-    m = re.match(r"integrate\((.+),\s*(\w+)\)", text, re.IGNORECASE)
+    # --- Indefinite integral: integrate(expr, var) ---
+    m = re.match(r"integrate\((.+),\s*(\w+)\)\s*$", text, re.IGNORECASE)
     if m:
         expr_str, var_str = m.group(1), m.group(2)
-        try:
-            var = sp.Symbol(var_str)
-            expr = sp.sympify(expr_str)
-            result = sp.integrate(expr, var)
-            return f"= {result} + C"
-        except Exception as e:
-            raise ValueError(f"Could not evaluate integral: {e}")
+        var = sp.Symbol(var_str)
+        expr = sp.sympify(expr_str)
+        steps.append({"title": "Identified as indefinite integral", "expr": f"∫({expr_str}) d{var_str}", "type": "step"})
+        result = sp.integrate(expr, var)
+        steps.append({"title": "Apply integration rules", "expr": str(result), "type": "step"})
+        steps.append({"title": "Final Answer (+ C for constant)", "expr": f"{result} + C", "type": "final"})
+        return steps
 
-    # --- Derivative: diff(expr, x) ---
-    m = re.match(r"diff\((.+),\s*(\w+)\)", text, re.IGNORECASE)
+    # --- Derivative: diff(expr, var) ---
+    m = re.match(r"diff\((.+),\s*(\w+)\)\s*$", text, re.IGNORECASE)
     if m:
         expr_str, var_str = m.group(1), m.group(2)
-        try:
-            var = sp.Symbol(var_str)
-            expr = sp.sympify(expr_str)
-            result = sp.diff(expr, var)
-            return f"= {result}"
-        except Exception as e:
-            raise ValueError(f"Could not differentiate: {e}")
+        var = sp.Symbol(var_str)
+        expr = sp.sympify(expr_str)
+        steps.append({"title": "Identified as derivative", "expr": f"d/d{var_str} [{expr_str}]", "type": "step"})
+        result = sp.diff(expr, var)
+        simplified = sp.simplify(result)
+        steps.append({"title": "Apply differentiation rules", "expr": str(result), "type": "step"})
+        if str(result) != str(simplified):
+            steps.append({"title": "Simplified", "expr": str(simplified), "type": "step"})
+        steps.append({"title": "Final Answer", "expr": str(simplified), "type": "final"})
+        return steps
 
-    # --- Equation or expression (existing logic) ---
+    # --- Equation or arithmetic expression ---
     try:
         expr_str = parse_expression(text)
     except ValueError as e:
-        raise ValueError(f"Parsing failed: {e}")
+        raise ValueError(f"Could not parse: {e}")
+
+    steps.append({"title": "Parsed expression", "expr": expr_str, "type": "step"})
 
     try:
         sympy_expr = sp.sympify(expr_str, evaluate=False)
     except Exception as e:
-        raise ValueError(f"Could not interpret '{expr_str}': {e}")
+        raise ValueError(f"Could not interpret expression: {e}")
 
     free_symbols = sympy_expr.free_symbols
 
+    # Pure arithmetic — no variables
     if not free_symbols:
-        return _evaluate_numeric(sympy_expr)
+        evaluated = sp.simplify(sympy_expr)
+        numeric = float(evaluated.evalf())
+        answer = int(numeric) if numeric == int(numeric) else round(numeric, 6)
+        steps.append({"title": "Evaluate arithmetic", "expr": str(evaluated), "type": "step"})
+        steps.append({"title": "Final Answer", "expr": str(answer), "type": "final"})
+        return steps
 
+    # Single variable — solve
     if len(free_symbols) == 1:
         var = next(iter(free_symbols))
-        return _solve_single_variable(sympy_expr, var)
+        steps.append({"title": f"Solve for {var}", "expr": f"{expr_str} = 0", "type": "step"})
 
+        try:
+            solutions = sp.solve(sympy_expr, var)
+        except NotImplementedError:
+            solutions = []
+
+        if not solutions:
+            try:
+                sol_set = sp.solveset(sympy_expr, var, domain=sp.S.Reals)
+                if sol_set.is_FiniteSet:
+                    solutions = list(sol_set)
+            except Exception:
+                pass
+
+        if not solutions:
+            for start in [0, 1, -1, 2, 10]:
+                try:
+                    root = sp.nsolve(sympy_expr, var, start)
+                    steps.append({"title": "Numerical method used", "expr": f"{var} ≈ {round(float(root), 4)}", "type": "step"})
+                    steps.append({"title": "Final Answer", "expr": f"{var} ≈ {round(float(root), 4)}", "type": "final"})
+                    return steps
+                except Exception:
+                    continue
+            raise ValueError("No real solution found.")
+
+        steps.append({"title": "Factor / apply quadratic formula", "expr": f"{len(solutions)} solution(s) found", "type": "step"})
+
+        answer_parts = []
+        for sol in solutions:
+            try:
+                numeric = float(sol.evalf())
+                exact = str(sol)
+                approx = round(numeric, 4)
+                if numeric == int(numeric):
+                    answer_parts.append(f"{var} = {int(numeric)}")
+                    steps.append({"title": f"Solution", "expr": f"{var} = {int(numeric)}", "type": "step"})
+                else:
+                    answer_parts.append(f"{var} = {exact} ≈ {approx}")
+                    steps.append({"title": f"Solution (exact)", "expr": f"{var} = {exact}", "type": "step"})
+                    steps.append({"title": f"Solution (decimal)", "expr": f"{var} ≈ {approx}", "type": "step"})
+            except Exception:
+                answer_parts.append(f"{var} = {sol}")
+                steps.append({"title": "Solution", "expr": f"{var} = {sol}", "type": "step"})
+
+        steps.append({"title": "Final Answer", "expr": "  ,  ".join(answer_parts), "type": "final"})
+        return steps
+
+    # Multiple variables
     simplified = sp.simplify(sympy_expr)
     vars_str = ", ".join(str(s) for s in sorted(free_symbols, key=str))
-    return f"Simplified (variables: {vars_str}):\n{simplified} = 0"
-
-
-def _evaluate_numeric(expr):
-    result = sp.simplify(expr)
-    numeric = float(result.evalf())
-    if numeric == int(numeric):
-        return f"= {int(numeric)}"
-    return f"≈ {round(numeric, 4)}"
-
-
-def _solve_single_variable(expr, var):
-    try:
-        solutions = sp.solve(expr, var)
-    except NotImplementedError:
-        solutions = []
-
-    if not solutions:
-        try:
-            sol_set = sp.solveset(expr, var, domain=sp.S.Reals)
-            if sol_set.is_FiniteSet:
-                solutions = list(sol_set)
-            elif not sol_set.is_empty:
-                return f"{var} ∈ {sol_set}"
-        except Exception:
-            pass
-
-    if not solutions:
-        for start in [0, 1, -1, 2, 10]:
-            try:
-                root = sp.nsolve(expr, var, start)
-                return f"{var} ≈ {round(float(root), 4)}  (numerical)"
-            except Exception:
-                continue
-        raise ValueError("No real solution found.")
-
-    parts = []
-    for sol in solutions:
-        try:
-            numeric = float(sol.evalf())
-            exact = str(sol)
-            approx = round(numeric, 4)
-            if numeric == int(numeric):
-                parts.append(f"{var} = {int(numeric)}")
-            elif exact != str(approx):
-                parts.append(f"{var} = {exact}  (≈ {approx})")
-            else:
-                parts.append(f"{var} = {approx}")
-        except (TypeError, ValueError):
-            parts.append(f"{var} = {sol}")
-
-    return "\n".join(parts)
+    steps.append({"title": f"Multiple variables ({vars_str}) — simplified form", "expr": str(simplified), "type": "step"})
+    steps.append({"title": "Final Answer", "expr": f"{simplified} = 0", "type": "final"})
+    return steps
